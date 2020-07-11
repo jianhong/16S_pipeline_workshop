@@ -1,8 +1,8 @@
-# Plot sequence logo with motifStack/dagLogo
+# Motif analysis with motifStack and dagLogo
 
 # Instructors and contact information
 - Jianhong Ou: jianhong.ou@duke.edu
-- Haibo Liu: haibol2017@gmail.com
+- Haibo Liu: Haibo.Liu@umassmed.edu
 - Lihua Julie Zhu: julie.zhu@umassmed.edu
 
 # Workshop Description
