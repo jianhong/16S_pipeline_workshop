@@ -1,5 +1,7 @@
 # Motif analysis with motifStack and dagLogo
 
+![.github/workflows/basic_checks.yaml](https://github.com/jianhong/Bioc2020workshop/workflows/.github/workflows/basic_checks.yaml/badge.svg)
+
 # Instructors and contact information
 - Jianhong Ou: jianhong.ou@duke.edu
 - Haibo Liu: Haibo.Liu@umassmed.edu
