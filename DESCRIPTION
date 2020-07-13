@@ -20,4 +20,5 @@ License: GPL (>= 2)
 Lazyload: yes
 URL: https://jianhong.github.io/motifStackBiocWorkshop2020
 BugReports: https://github.com/jianhong/Bioc2020workshop/issues/new/choose
+DockerImage: jianhong/motifstackbiocworkshop2020:latest
 VignetteBuilder: knitr
