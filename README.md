@@ -39,9 +39,9 @@ Ref: http://dx.doi.org/10.1038/nmeth.4555
 
 | Activity                     | Time |
 |------------------------------|------|
-| Introduction of motifStack | 20m|
-| Sample code explanation  | 10min |
-| Hands-on workshop | 25m |
+| Introduction of motifStack | 10min|
+| Sample code explanation  | 5min |
+| Hands-on workshop | 10min |
 | Q & A| 5 min|
 
 # Workshop goals and objectives
