@@ -13,7 +13,7 @@ Depends: R (>= 4.0.0), methods, motifStack (>= 1.33.3), dagLogo
 Imports: graphics, utils
 Suggests: RUnit, BiocGenerics, MotifDb, knitr, RColorBrewer, 
           ggplot2, bookdown, kableExtra, colorBlindness, ade4, 
-          BiocManager, Biostrings
+          BiocManager, Biostrings, pkgdown
 biocViews: SequenceMatching, Visualization, Sequencing, Microarray, Alignment, ChIPchip, ChIPSeq, MotifAnnotation, DataImport
 Description: Use motifStack to represent multiple motifs with different similarity scores in one canvas.
 License: GPL (>= 2)
