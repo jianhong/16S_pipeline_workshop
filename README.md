@@ -2,6 +2,9 @@
 
 ![.github/workflows/basic_checks.yaml](https://github.com/jianhong/Bioc2020workshop/workflows/.github/workflows/basic_checks.yaml/badge.svg)
 
+[github page](https://jianhong.github.io/Bioc2020workshop/)
+[source code](https://github.com/jianhong/Bioc2020workshop)
+
 # Instructors and contact information
 - Jianhong Ou: jianhong.ou@duke.edu
 - Haibo Liu: Haibo.Liu@umassmed.edu
