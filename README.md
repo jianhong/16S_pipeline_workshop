@@ -47,7 +47,7 @@ To take this workshop, participants are expected to have basic knowledge as foll
 
 ## Learning objectives
 
-1.	Learn how to set up the `[conda](https://docs.conda.io/en/latest/)` environment on cluster.
+1.	Learn how to set up the [conda](https://docs.conda.io/en/latest/) environment on cluster.
 
 2.	Learn how to set up the test run.
 
