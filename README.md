@@ -1,7 +1,5 @@
 # Using 16S_pipeline to analysis 16S rRNA gene sequencing
 
-![.github/workflows/basic_checks.yaml](https://github.com/jianhong/16S_pipeline_workshop/workflows/.github/workflows/basic_checks.yaml/badge.svg)
-
 [github page](https://jianhong.github.io/16S_pipeline_workshop/) | 
 [source code](https://github.com/jianhong/16S_pipeline_workshop)
 
