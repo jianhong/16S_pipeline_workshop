@@ -1,4 +1,4 @@
-url: https://jianhong.github.io/motifStackBiocWorkshop2020
+url: https://jianhong.github.io/16S_pipeline_workshop
 
 template:
   params:
@@ -6,12 +6,12 @@ template:
     ganalytics: UA-93043521-1
 
 home:
-  title: "motifStackBiocWorkshop2020"
+  title: "16S_pipeline_workshop"
   type: inverse
 
 
 navbar:
   right:
    - icon: fa-github
-     href: https://github.com/jianhong/Bioc2020workshop
+     href: https://github.com/jianhong/16S_pipeline_workshop
      

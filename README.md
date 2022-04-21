@@ -1,72 +1,61 @@
-# Motif analysis with motifStack and dagLogo
+# Using 16S_pipeline to analysis 16S rRNA gene sequencing
 
-![.github/workflows/basic_checks.yaml](https://github.com/jianhong/Bioc2020workshop/workflows/.github/workflows/basic_checks.yaml/badge.svg)
+![.github/workflows/basic_checks.yaml](https://github.com/jianhong/16S_pipeline_workshop/workflows/.github/workflows/basic_checks.yaml/badge.svg)
 
-[github page](https://jianhong.github.io/Bioc2020workshop/) | 
-[source code](https://github.com/jianhong/Bioc2020workshop)
+[github page](https://jianhong.github.io/16S_pipeline_workshop/) | 
+[source code](https://github.com/jianhong/16S_pipeline_workshop)
 
-# Instructors and contact information
+# Instructor and contact information
 - Jianhong Ou: jianhong.ou@duke.edu
-- Haibo Liu: Haibo.Liu@umassmed.edu
-- Lihua Julie Zhu: julie.zhu@umassmed.edu
 
 # Workshop Description
 
-A sequence motif is a short recurring pattern with biological significance such as a DNA recognition sequence for a transcription factor (TF), a mRNA splicing signal, or a functional region of a protein domain. To facilitate the analysis of binding site diversity/conservation within families of TFs and the evolution of binding sites between different species, we have developed a Bioconductor package motifStack. In this workshop, we will demonstrate the features and flexibility of motifStack for visualizing the alignment of multiple motifs in various styles. In addition, we will illustrate the utility of motifStack for providing insights into families of related motifs using a large collections of homeodomain (HD) DNA binding motifs from fly.
+16S_pipeline is a bioinformatics best-practice analysis pipeline for 16S rRNA gene sequencing. The pipeline is built using [Nextflow](https://www.nextflow.io/), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies.
 
-To take this workshop, participants are expected to have basic knowledge as follows: basic knowledge of R syntax, and basic knowledge of sequence motifs.
-
-Ref: http://dx.doi.org/10.1038/nmeth.4555
+To take this workshop, participants are expected to have basic knowledge as follows: basic knowledge of linux syntax, and basic knowledge of cluster computation.
 
 ## Pre-requisites
-* Basic knowledge of sequnce motifs
-* Basic knowledge of R
+* Basic knowledge of linux
+* Basic knowledge of DCC
 * A computer with internet connection
 
 ## Workshop Participation
 
-* An overview of visualization of sequence motifs.
-* Hands-on workshop learning how to do plot sequence logos with motifStack and dagLogo 
-
-## _R_ / _Bioconductor_ packages used
-
-* [motifStack]
-* [dagLogo]
-* [Biostrings]
-* [MotifDb]
-* [ggplot2]
-* [colorBlindness]
+* An overview of 16S rRNA gene sequencing analysis.
+* Hands-on workshop learning how to run the pipeline on cluster.
 
 ## Time outline
 
 
-| Activity                     | Time |
-|------------------------------|------|
-| Introduction of motifStack | 10min|
-| Sample code explanation  | 5min |
-| Hands-on workshop | 10min |
-| Q & A| 5 min|
+| Activity                     | Time  |
+|------------------------------|-------|
+| Introduction of 16S_pipeline | 30min |
+| Sample code explanation      | 10min |
+| Hands-on workshop            | 90min |
+| Q & A                        | 5 min |
 
 # Workshop goals and objectives
 
 ## Learning goals
 
-1.	Gain the knowledge of typical workflows for the generation, representation, alignment and visualization of DNA/RNA/amino acid motifs.
+1.	Gain the knowledge of typical workflows for the 16S rRNA gene sequencing analysis.
 
-2.	Learn how to visualize the alignment of multiple motifs in various styles using motifStack.
+2.	Learn how to test run 16S_pipeline.
 
-3.	Become aware that experimental approaches, motif generation and alignment algorithms may affect motif alignment results and visualization.
+3.  Learn how to run 16S_pipeline for real data.
+
+3.	Learn how to adjust the parameters to fit your experiment design.
 
 
 ## Learning objectives
 
-1.	Learn how to import motifs from databases or a matrix.
+1.	Learn how to set up the `[conda](https://docs.conda.io/en/latest/)` environment on cluster.
 
-2.	Learn how to plot a single motif for DNA/RNA/AA.
+2.	Learn how to set up the test run.
 
-3.	Learn how to plot multiple motifs in various styles such as a linear tree and a radial tree.
+3.	Learn how to set up the run for real size data.
 
-4.	Understand how to merge similar motifs and display the merged motif as motif signature.
+4.	Understand how to adjust the parameters.
 
-5.	Understand how to use various color options to highlight different motif features.
+5.	Understand how to get help.
 

@@ -1,24 +1,17 @@
-Package: motifStackWorkshop
+Package: workshop16Spipeline
 Type: Package
-Version: 0.0.7
-Title: Motif analysis with motifStack and dagLogo
+Version: 0.0.1
+Title: 16S_pipeline workshop
 Authors@R: c(person(given="Jianhong", family="Ou", email="jianhong.ou@duke.edu", 
-        role=c("aut", "cre"), comment=c(ORCID="0000-0002-8652-2488")),
-        person("Haibo Liu", "Developer", role = "aut",
-        email = "Haibo.Liu@umassmed.edu"),
-        person("Lihua Julie Zhu", "Developer", role = "aut",
-        email = "Julie.Zhu@umassmed.edu"))
-Maintainer: Jianhong Ou <jianhong.ou@duke.edu>
-Depends: R (>= 4.0.0), methods, motifStack (>= 1.33.3), dagLogo
+        role=c("aut", "cre"), comment=c(ORCID="0000-0002-8652-2488")))
+Depends: R (>= 4.1.0)
 Imports: graphics, utils
-Suggests: RUnit, BiocGenerics, MotifDb, knitr, RColorBrewer, 
-          ggplot2, bookdown, kableExtra, colorBlindness, ade4, 
-          BiocManager, Biostrings, pkgdown
-biocViews: SequenceMatching, Visualization, Sequencing, Microarray, Alignment, ChIPchip, ChIPSeq, MotifAnnotation, DataImport
-Description: Use motifStack to represent multiple motifs with different similarity scores in one canvas.
+Suggests: knitr, bookdown, kableExtra, pkgdown
+biocViews: Sequencing, Alignment, DataImport
+Description: Using 16S_pipeline to analysis 16S rRNA gene sequencing.
 License: GPL (>= 2)
 Lazyload: yes
-URL: https://jianhong.github.io/motifStackBiocWorkshop2020
-BugReports: https://github.com/jianhong/Bioc2020workshop/issues/new/choose
-DockerImage: jianhong/motifstackbiocworkshop2020:latest
+URL: https://jianhong.github.io/16S_pipeline_workshop
+BugReports: https://github.com/jianhong/16S_pipeline_workshop/issues/new/choose
+DockerImage: jianhong/16S_pipeline_workshop:latest
 VignetteBuilder: knitr

@@ -1,0 +1,516 @@
+---
+title: "Using 16S\_pipeline to analysis 16S rRNA gene sequencing"
+author: "Jianhong Ou^[Regeneration Center, Duke University School of Medicine; Durham, NC, USA]"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+package: "`r packageVersion('workshop16Spipeline')`"
+bibliography: "`r system.file('vignettes', 'ref.bib', package = 'workshop16Spipeline')`"
+csl: "`r system.file('vignettes', 'nature.csl', package = 'workshop16Spipeline')`"
+vignette: >
+  %\VignetteIndexEntry{workshop16Spipeline}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+output: 
+  bookdown::html_document2:
+    theme: simplex
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    fig_caption: true
+  bookdown::pdf_document2:
+    toc: yes
+    toc_depth: 4
+    fig_caption: true
+---
+
+```{r checkplatform, include=FALSE, message=FALSE, warning=FALSE}
+library(knitr)
+opts_chunk$set(eval=FALSE, fig.width=6, fig.height=2, 
+               warning = FALSE, message = FALSE)
+```
+
+## Introduction
+
+16S rRNA gene sequencing is a high throughput method for identification,
+classification and quantitation of prokaryotes such as Bacteria and Archaea
+within complex biological mixtures [@janda200716s;@clarridge2004impact].
+
+The traditional identification of bacteria is based on phenotypic and morphologic characteristics described on standard references such as _Bergey\'s Manual of Systematic Bacteriology_.
+It ask the the bacteria cultivable and is generally not as accurate as identification based on genotypic methods [@clarridge2004impact].
+16S rRNA gene sequence is highly conserved in genus level and the small subunit (SSU) can be amplified by same primers for most of the microbes[@walters2016improved]. By comparing the sequenced SSU with the microbial identification sequences in ribosomal database, genus or even species can be assigned to each sequenced SSU [@janda200716s]. The coupling of SSU PCR with next-generation sequencing has enabled the study of mixture samples at low cost.
+
+To date, several analysis pipelines have been developed for analysis of 16S rRNA gene sequence data and the commonly used pipelines include _Quantitative Insights Into Microbial Ecology (QIIME)_[@kuczynski2012using], _mothur_ [@schloss2009introducing] and DATA2 [@callahan2016dada2]. However, most of the pipeline ask users to assemble the pipeline step by step. This step by step pipeline provide the flexibility to handle different experiment design. But in the meanwhile, it brings learning barrier for the beginners.
+
+The _16S\_pipeline_ is a one-step pipeline for 16S rRNA gene sequencing. It ask limited computer science background. The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies.
+
+In this tutorial, we will demonstrate the features and flexibility of _16S\_pipeline_ for 16S rRNA gene sequencing on [Duke Compute Cluster](https:://dcc.duke.edu), a job scheduler system by powered by [SLURM](https://slurm.schedmd.com/documentation.html).
+
+## Pipeline summary
+
+0. Prepare fastq files ([`bcl2fastq`](https://support.illumina.com/sequencing/sequencing_software/bcl2fastq-conversion-software.html))
+1. Read QC ([`FastQC`](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/))
+2. Remove primers ([`trimmomatic`](http://www.usadellab.org/cms/?page=trimmomatic))
+3. Sync barcodes ([`fastq_pair_filter.py`](https://gist.github.com/588841/))
+4. Demultiplex ([`qiime2::demux`](https://docs.qiime2.org/2021.11/plugins/available/demux/))
+5. Filter reads ([`DATA2`](http://benjjneb.github.io/dada2/))
+6. Run dada2 ([`DATA2`](http://benjjneb.github.io/dada2/))
+7. Present QC for raw reads ([`MultiQC`](http://multiqc.info/))
+
+## Installation
+
+The pipeline ask [`Nextflow`](https://www.nextflow.io/docs/latest/getstarted.html#installation) (`>=21.10.3`) and any of
+[`Conda`](https://conda.io/miniconda.html),
+[`Docker`](https://docs.docker.com/engine/installation/), [`Singularity`](https://www.sylabs.io/guides/3.0/user-guide/), [`Podman`](https://podman.io/), [`Shifter`](https://nersc.gitlab.io/development/shifter/how-to-use/) or [`Charliecloud`](https://hpc.github.io/charliecloud/) for full pipeline reproducibility. 
+
+In this tutorial, we will use `Conda` to demonstrate the functionalities of _16S\_pipeline_ for 16S rRNA gene sequencing on [Duke Compute Cluster](https:://dcc.duke.edu).
+
+### Step1. Install `Conda`.
+
+```console
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+```
+### Step2. Create `Nextflow` environment.
+Please make sure the proper nextflow version (>=21.10.3) is installed.
+
+```console
+conda create -y --name microbiome bioconda::nextflow=21.10.6
+```
+
+### Step3 (optional). Install tools required in the pipeline.
+This step can save time by avoiding setup the tools for each run. It may be difficult for users to setup all the environment.
+```console
+conda config --append channels conda-forge && \
+conda create -y --name fastqc bioconda::fastqc=0.11.9 && \
+conda create -y --name trimmomatic bioconda::trimmomatic=0.39 && \
+conda create -y --name multiqc bioconda::multiqc=1.11 && \
+wget https://data.qiime2.org/distro/core/qiime2-2021.11-py38-linux-conda.yml && \
+conda env create -n qiime2 --file qiime2-2021.11-py38-linux-conda.yml && \
+conda create -y --name R4_1_3 -c conda-forge r-base=4.13 && \
+conda activate R4_1_3 && \
+    Rscript -e "install.packages(c('BiocManager', 'remotes'), repos='https://cloud.r-project.org'); BiocManager::install(c('benjjneb/dada2', 'joey711/phyloseq'), update=TRUE, ask=FALSE)"
+```
+In this step, we set up the environment for each step and we need to export all the executable to `PATH`.
+```console
+export PATH=${PATH}:$CONDA_PREFIX/envs/fastqc/bin && \
+export PATH=${PATH}:$CONDA_PREFIX/envs/trimmomatic/bin && \
+export PATH=${PATH}:$CONDA_PREFIX/envs/R4_1_3 && \
+export PATH=${PATH}:$CONDA_PREFIX/envs/qiime2/bin && \
+export PATH=${PATH}:$CONDA_PREFIX/envs/multiqc/bin
+```
+
+## Inputs of _16S\_pipeline_
+
+You will need to create a barcodes and metadata tables with information about the samples you would like to analyze before running the pipeline. Use this parameter to specify its location.
+
+```console
+--input '[path to raw reads files]' --barcodes '[path to barcodes tsv file]' --metadata '[path to metadata csv file]'
+```
+
+### Raw reads
+
+There are two choices for the raw reads input.
+
+1. The fastq.gz files exported by [bcl2fastq](https://support.illumina.com/sequencing/sequencing_software/bcl2fastq-conversion-software.html). The fastq.gz with R1, R2 and I1 files should be put into one folder and the folder path will be the parameter of `input`. And `--skip_bcl2fastq` should be set.
+2. The Illumina intensity files ready to be handled by `bcl2fastq`. The folder will be the parameter of `input`. Please make sure the `bcl2fastq` is installed. For `module` package available system (check by command `module avail`), the `bcl2fastq` could be load into the `PATH` by following sample code:
+
+```console
+module load bcl2fastq/2.20
+```
+
+### barcodes
+
+It has to be a tab-separated file with 2 columns, and a header row as shown in the examples below.
+It will be used to do demultiplex by [qiime2::demux](https://docs.qiime2.org/2021.11/plugins/available/demux/).
+
+```console
+sample-id barcode-sequence
+#q2:types categorical
+Spinach1  TGTGCGATAACA
+Spinach2  GATTATCGACGA
+Spinach3  GCCTAGCCCAAT
+....
+```
+
+An [example samplesheet](../assets/barcodes.tsv) has been provided with the pipeline.
+
+### Metadata
+
+The `metadata` contain the information about the samples you wold like to analyze.
+It has to be a comma-separated file with 4 columns, and a header row as shown in the examples below.
+
+```console
+SampleID,Character1,Character2,Character3
+SAMPLE1,A,treatment,1
+SAMPLE2,B,treatment,1
+SAMPLE3,C,control,1
+```
+
+| Column         | Description                                                                                                                                                                            |
+|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `SampleID`            | Custom sample name. This entry will be unique for each sample and should not contain any special characters. |
+| `CharacterX`      | metadata for each sample. The column name can be anything related with the samples.  |
+
+## Running the pipeline
+
+The typical command for running the pipeline is as follows:
+
+```console
+nextflow run jianhong/16S_pipeline --input raw --barcodes barcodes.tsv --metadata metadata.csv -profile docker
+```
+
+This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
+
+Note that the pipeline will create the following files in your working directory:
+
+```console
+work            # Directory containing the nextflow working files
+results         # Finished results (configurable, see below)
+.nextflow_log   # Log file from Nextflow
+# Other nextflow hidden files, eg. history of pipeline runs and old logs.
+```
+
+### Test run
+
+Use [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) or Mac Terminal to SSH into [DCC](dcc-login.oit.duke.edu). You will need username, password, and MFA credentials.
+
+After log in to DCC, please Navigate to scratch space and create a scratch folder for test.
+```console
+cd /work/$(id -un) && \
+mkdir test_16S_pipeline && \
+cd test_16S_pipeline
+```
+
+Follow the direction in `Installation` section for prepare the environment.
+Create a interactive session for test run and then activate the environment.
+
+```console
+# create a interactive session on DCC
+srun --mem 20G -c 2 --pty bash -i
+# activate the environment
+conda activate microbiome
+# test the installation
+nextflow run jianhong/16S_pipeline -r main -profile conda,test
+```
+
+The parameter `-profile` indicates the pre-defined parameter sets.
+The [test](https://raw.githubusercontent.com/jianhong/16S_pipeline/main/conf/test.config) profile 
+defined the `Raw reads`, `barcode` and `metadata`.
+The pipeline will download those files on-fly if they are in cloud.
+
+```console
+# exit the asked resourses
+exit
+```
+
+### Run the pipeline for your own data
+
+To run the pipeline for your own data, it will be better to run it via slurm.
+To do that, we need profile config file and the batch script file for slurm.
+
+#### Create profile config file named as `profile.config`.
+
+```console
+// submit by slurm
+process.executor = "slurm"
+process.clusterOptions = "-J ProjectName"
+params {
+    // Limit resources
+    max_cpus   = 8
+    max_memory = '30.GB'
+    max_time   = '12.h'
+    
+    // Input data
+    input = 'path/to/your/initailFiles' // replace it by your own folder contain Intensities folder.
+    barcodes = 'path/to/your/barcodes.tsv'
+    metadata = 'path/to/your/metadata.csv'
+
+    // report email
+    email = 'your@email.addr'
+}
+```
+
+#### Create a slurm script file named as `microbiome.sh`
+```console
+#!/bin/bash
+#SBATCH -J 16S_submitter #jobname
+#SBATCH -o microbiome.out.%A_%a.txt
+#SBATCH -e microbiome.err.%A_%a.txt
+#SBATCH --mem-per-cpu=20G #memory for the job submission node, you can increase this if memory is not enough
+#SBATCH -c 1 # 1CPU is good enough
+
+## create temp folder to avoid storage issue in a special node
+mkdir -p tmp
+export TMPDIR=${PWD}/tmp
+export TMP=${PWD}/tmp
+export TEMP=${PWD}/tmp
+
+## activate the miniconda
+source ${HOME}/.bashrc
+## activate the nextflow environment
+conda activate microbiome
+## load the bcl2fastq if you want to start from intensity files
+# module load bcl2fastq/2.20
+## update the pipeline if you want to run latest release.
+# nextflow pull jianhong/16S_pipeline -r main
+## run the pipeline
+### -resume, resume from last failed run
+### -profile conda, prepare the environment on-fly
+### -r main, run the main branch of the pipeline, default is master branch, which is not available.
+### -c profile.config, read in all the parameters in profile.config file.
+nextflow run jianhong/16S_pipeline -r main -profile conda -c profile.config -resume
+```
+
+#### Submit the job and wait for results
+
+```console
+sbatch microbiome.sh
+```
+
+### Updating the pipeline
+
+When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
+
+```console
+nextflow pull jianhong/16S_pipeline
+```
+### Submit the job with pre-demultiplexed reads
+
+If fastq files are already demultiplexed, you can skip the run of module `bcl2fastq` and `demultiplex`. Here is the sample config file.
+
+```nextflow
+// submit by slurm
+process.executor = "slurm"
+process.clusterOptions = "-J ProjectName"
+params {
+    config_profile_name        = 'Test demultiplexed profile'
+    config_profile_description = 'Minimal test dataset to check pipeline start from demultiplexed data'
+
+    // Limit resources
+    max_cpus   = 8
+    max_memory = '30.GB'
+    max_time   = '12.h'
+
+    // Input data
+    input  = "path/to/your/demuxed/reads"
+    metadata = 'path/to/your/metadata.csv'
+    skip_bcl2fastq = true
+    skip_demultiplex = true
+}
+```
+
+### Reproducibility
+
+It is a good idea to specify a pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
+
+First, go to the [16S_pipeline releases page](https://github.com/16S_pipeline/releases) and find the latest version number - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`. You can also assign the run via commit id.
+
+This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future.
+
+## Core Nextflow arguments
+
+> **NB:** These options are part of Nextflow and use a _single_ hyphen (pipeline parameters use a double-hyphen).
+
+### `-profile`
+
+Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments.
+
+Several generic profiles are bundled with the pipeline which instruct the pipeline to use software packaged using different methods (Docker, Singularity, Podman, Shifter, Charliecloud, Conda) - see below. When using Biocontainers, most of these software packaging methods pull Docker containers from quay.io e.g [FastQC](https://quay.io/repository/biocontainers/fastqc) except for Singularity which directly downloads Singularity images via https hosted by the [Galaxy project](https://depot.galaxyproject.org/singularity/) and Conda which downloads and installs software locally from [Bioconda](https://bioconda.github.io/).
+
+> We highly recommend the use of Docker or Singularity containers for full pipeline reproducibility, however when this is not possible, Conda is also supported.
+
+The pipeline also dynamically loads configurations from [https://github.com/nf-core/configs](https://github.com/nf-core/configs) when it runs, making multiple config profiles for various institutional clusters available at run time. For more information and to see if your system is available in these configs please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation).
+
+Note that multiple profiles can be loaded, for example: `-profile test,docker` - the order of arguments is important!
+They are loaded in sequence, so later profiles can overwrite earlier profiles.
+
+If `-profile` is not specified, the pipeline will run locally and expect all software to be installed and available on the `PATH`. This is _not_ recommended.
+
+* `docker`
+    * A generic configuration profile to be used with [Docker](https://docker.com/)
+* `singularity`
+    * A generic configuration profile to be used with [Singularity](https://sylabs.io/docs/)
+* `podman`
+    * A generic configuration profile to be used with [Podman](https://podman.io/)
+* `shifter`
+    * A generic configuration profile to be used with [Shifter](https://nersc.gitlab.io/development/shifter/how-to-use/)
+* `charliecloud`
+    * A generic configuration profile to be used with [Charliecloud](https://hpc.github.io/charliecloud/)
+* `conda`
+    * A generic configuration profile to be used with [Conda](https://conda.io/docs/). Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker, Singularity, Podman, Shifter or Charliecloud.
+* `test`
+    * A profile with a complete configuration for automated testing
+    * Includes links to test data so needs no other parameters
+
+### `-resume`
+
+Specify this when restarting a pipeline. Nextflow will used cached results from any pipeline steps where the inputs are the same, continuing from where it got to previously.
+
+You can also supply a run name to resume a specific run: `-resume [run-name]`. Use the `nextflow log` command to show previous run names.
+
+### `-c`
+
+Specify the path to a specific config file (this is a core Nextflow command). See the [nf-core website documentation](https://nf-co.re/usage/configuration) for more information.
+
+## Custom configuration
+
+### Resource requests
+
+Whilst the default requirements set within the pipeline will hopefully work for most people and with most input data, you may find that you want to customize the compute resources that the pipeline requests. Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most of the steps in the pipeline, if the job exits with any of the error codes specified [here](https://github.com/nf-core/rnaseq/blob/4c27ef5610c87db00c3c5a3eed10b1d161abf575/conf/base.config#L18) it will automatically be resubmitted with higher requests (2 x original, then 3 x original). If it still fails after the third attempt then the pipeline execution is stopped.
+
+For example, if the pipeline is failing after multiple re-submissions of the `BCL2FASTQ` process due to an exit code of `137` this would indicate that there is an out of memory issue:
+
+```console
+[9d/172ca5] NOTE: Process `NFCORE_MICROBIOME:MICROBIOME:BCL2FASTQ` terminated with an error exit status (137) -- Execution is retried (1)
+Error executing process > 'NFCORE_MICROBIOME:MICROBIOME:BCL2FASTQ'
+
+Caused by:
+    Process `NFCORE_MICROBIOME:MICROBIOME:BCL2FASTQ` terminated with an error exit status (137)
+
+Command executed:
+    bcl2fastq \
+            --runfolder-dir raw \
+            --output-dir fastq/ \
+            --sample-sheet samplesheet.csv \
+            --processing-threads 2
+
+Command exit status:
+    137
+
+Command output:
+    (empty)
+
+Command error:
+    .command.sh: line 9:  30 Killed    bcl2fastq --runfolder-dir raw --output-dir fastq/ <TRUNCATED>
+Work dir:
+    /home/pipelinetest/work/9d/172ca5881234073e8d76f2a19c88fb
+
+Tip: you can replicate the issue by changing to the process work dir and entering the command `bash .command.run`
+```
+
+To bypass this error you would need to find exactly which resources are set by the `BCL2FASTQ` process. The quickest way is to search for `process BCL2FASTQ` in the [jianhong/16S_pipeline Github repo](https://github.com/jianhong/16S_pipeline/search?q=process+BCL2FASTQ). We have standardized the structure of Nextflow DSL2 pipelines such that all module files will be present in the `modules/` directory and so based on the search results the file we want is `modules/local/bcl2fastq.nf`. If you click on the link to that file you will notice that there is a `label` directive at the top of the module that is set to `label process_high`. The [Nextflow `label`](https://www.nextflow.io/docs/latest/process.html#label) directive allows us to organise workflow processes in separate groups which can be referenced in a configuration file to select and configure subset of processes having similar computing requirements. The default values for the `process_high` label are set in the pipeline's [`base.config`](https://github.com/jianhong/16S_pipeline/blob/c7f5684d49151ac7974e7eabc7915f5e4a0fd3aa/conf/base.config#L39-L43) which in this case is defined as 72GB. Providing you haven't set any other standard nf-core parameters to __cap__ the [maximum resources](https://nf-co.re/usage/configuration#max-resources) used by the pipeline then we can try and bypass the `BCL2FASTQ` process failure by creating a custom config file that sets at least 72GB of memory, in this case increased to 100GB. The custom config below can then be provided to the pipeline via the [`-c`](#-c) parameter as highlighted in previous sections.
+
+```nextflow
+process {
+    withName: BCL2FASTQ {
+        memory = 100.GB
+    }
+}
+```
+
+> **NB:** We specify just the process name i.e. `BCL2FASTQ` in the config file and not the full task name string that is printed to screen in the error message or on the terminal whilst the pipeline is running i.e. `NFCORE_MICROBIOME:MICROBIOME:BCL2FASTQ`. You may get a warning suggesting that the process selector isn't recognised but you can ignore that if the process name has been specified correctly. This is something that needs to be fixed upstream in core Nextflow.
+
+### Module specific parameters
+
+Module specific parameters can be passed by config file in following format by setting the `ext.args`.
+
+```nextflow
+process {
+    withName: FILTERING {
+        ext.args   = '--trimming_reads --trim_left 10 --trim_right 0 --trunc_length_left 150 trunc_length_right 150'
+        ext.prefix = 's1'
+        publishDir = [
+            path: { "${params.outdir}/4_filter" },
+            mode: 'copy',
+            saveAs: { filename -> filename.equals('versions.yml') ? null : filename }
+        ]
+    }
+}
+```
+
+For `FILTERING`, the options are
+
+```console
+--trimming_reads, -t        "logical",  Trim reads or not.
+--trim_left, -a,            "integer",  Default 0. The number of nucleotides to remove
+                                        from the start of the R1 read. If both
+                                        trunc_length_left and trim_left are provided,
+                                        filtered reads will have length
+                                        trunc_length_left-trim_left.
+--trim_right, -b,           "integer",  Default 0. The number of nucleotides to remove
+                                        from the start of the R2 reads. If both
+                                        trunc_length_right and trim_right are provided,
+                                        filtered reads will have length
+                                        trunc_length_right-trim_right.
+--trunc_length_left, -m,    "integer",  Default 0 (no truncation). Truncate R1 reads
+                                        after trunc_length_left bases. Reads shorter
+                                        than this are discarded.
+--trunc_length_right, -n,   "integer",  Default 0 (no truncation). Truncate R2 reads
+                                        after trunc_length_right bases. Reads shorter
+                                        than this are discarded.
+```
+
+For `DADA2`, the options are
+
+```console
+--seq1, -a,           "integer",  The number of minimal sequence length should be kept.
+--seq2, -b,           "integer",  The number of maximum sequence length should be kept.
+--tryRC, -r,          "logical",  Default FALSE. If TRUE, the reverse-complement of each sequences will be used for classification if it is a better match to the reference sequences than the forward sequence.
+```
+
+There are multiple reports about half of the reads was in reverse complement direction when use user pre-demultiplexed reads as inputs. You may want to try `tryRC` parameter for DATA2 when you face the same issue.
+
+```nextflow
+process {
+    withName: DADA2 {
+        ext.args   = '--tryRC'
+        publishDir = [
+            path: { "${params.outdir}/5_dada2" },
+            mode: 'copy',
+            saveAs: { filename -> filename.equals('versions.yml') ? null : filename }
+        ]
+    }
+}
+```
+
+### nf-core/configs
+
+In most cases, you will only need to create a custom config as a one-off but if you and others within your organisation are likely to be running nf-core pipelines regularly and need to use the same settings regularly it may be a good idea to request that your custom config file is uploaded to the `nf-core/configs` git repository. Before you do this please can you test that the config file works with your pipeline of choice using the `-c` parameter. You can then create a pull request to the `nf-core/configs` repository with the addition of your config file, associated documentation file (see examples in [`nf-core/configs/docs`](https://github.com/nf-core/configs/tree/master/docs)), and amending [`nfcore_custom.config`](https://github.com/nf-core/configs/blob/master/nfcore_custom.config) to include your custom profile.
+
+See the main [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for more information about creating your own configuration files.
+
+If you have any questions or issues please send me a message via email.
+
+## Running in the background
+
+Nextflow handles job submissions and supervises the running jobs. The Nextflow process must run until the pipeline is finished.
+
+The Nextflow `-bg` flag launches Nextflow in the background, detached from your terminal so that the workflow does not stop if you log out of your session. The logs are saved to a file.
+
+Alternatively, you can use `screen` / `tmux` or similar tool to create a detached session which you can log back into at a later time.
+Some HPC setups also allow you to run nextflow within a cluster job submitted your job scheduler (from where it submits more jobs).
+
+## Nextflow memory requirements
+
+In some cases, the Nextflow Java virtual machines can start to request a large amount of memory.
+We recommend adding the following line to your environment to limit this (typically in `~/.bashrc` or `~./bash_profile`):
+
+```console
+NXF_OPTS='-Xms1g -Xmx4g'
+```
+
+## Handle the errors
+
+- Error: `The exit status of the task that caused the workflow execution to fail was: null.`
+
+Check the files are readable for the workflow.
+
+- Error: `Session aborted -- Cause: Unable to execute HTTP request: ngi-igenomes.s3.amazonaws.com`
+
+The internet connection reached the limitation. Try to resume the analysis one hour later.
+
+- Error: `PaddingError: Placeholder of length '80' too short in package`
+
+There is no easy answer here. The new `conda` packages should having a longer prefix (255 characters).
+The possible solution now is that try to run the pipeline in a shorter folder path, if at all possible.
+
+- Error: `Not a conda environment` or `command not found`
+
+There is something going wrong with the conda environment building.
+Just try to remove the conda environment folder and resume the run.
+
+- Error: `unable to load shared object 'work/conda/env-xxxxxx/lib/R/library/rtracklayer/libs/rtracklayer.dylib', dlopen(rtracklayer.dylib, 6) Library not loaded: @rpath/libssl.1.1.dylib`
+
+The openssl installation have issues for `conda`. Try to re-install it by
+`conda activate work/conda/env-xxxxxx && conda install --force-reinstall -y openssl`
+
+## References
